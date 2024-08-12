@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 
 # Pycharm is not looking at dev requirements.
@@ -195,16 +196,16 @@ def test_filtered_all_files_at_commit():
 
 def test_changed_files_since_first_commit():
     # This is /this/ git repo.
-    repo = GitHubRepo(
-        location=".",
-        repourl="https://github.com/EO-DataHub/configscanning.git",
-    )
+    with tempfile.TemporaryDirectory() as temp:
+        repo = GitHubRepo(
+            location=temp,
+            repourl="https://github.com/EO-DataHub/configscanning.git",
+        )
 
-    print("AAAAAAAAAAAAAAAAAAAA")
-    os.system("ls -aR")
-    print(os.system("ls -aR"))
-    print(os.listdir())
+        print("AAAAAAAAAAAAAAAAAAAA")
+        os.system("ls -aR")
+        os.system("git logs")
 
-    file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
+        file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
 
-    assert file_list == {"README.md"}
+        assert file_list == {"README.md"}
