@@ -31,11 +31,16 @@ jobs:
     name: Call Security Scan
     uses: EO-DataHub/github-actions/.github/workflows/security.yaml@main
 
-  unit-tests:
-    name: Run unit tests
+  unit-test-preparation:
+    name: Unshallows repo
+    runs-on: ubuntu-latest
     steps:
       - run: git fetch --unshallow
-      - uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
+
+  unit-tests:
+    name: Run unit tests
+    needs: unit-test-preparation
+    uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
 
   get-tag-name:
     runs-on: ubuntu-latest
