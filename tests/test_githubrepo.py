@@ -13,6 +13,9 @@ from configscanning.githubrepo import GitHubRepo
 
 TESTDIR = (Path(__file__).parent / "scratch/configscannertest/").absolute()
 
+if os.environ.get("CI"):
+    os.system("git fetch --unshallow")
+
 
 def test_determines_repo_name_and_local_location_from_url():
     repo = GitHubRepo(
