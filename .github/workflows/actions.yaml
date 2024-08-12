@@ -33,7 +33,9 @@ jobs:
 
   unit-tests:
     name: Run unit tests
-    uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
+    steps:
+      - run: git fetch --unshallow
+      - uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
 
   get-tag-name:
     runs-on: ubuntu-latest
