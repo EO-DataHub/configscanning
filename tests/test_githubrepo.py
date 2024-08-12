@@ -202,6 +202,9 @@ def test_changed_files_since_first_commit():
 
     file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
 
+    print("AAAAAAAAAAAAAAAAAAAA")
     os.system("ls -aR")
+    print(os.system("ls -aR"))
+    print(os.listdir())
 
     assert file_list == {"README.md"}
