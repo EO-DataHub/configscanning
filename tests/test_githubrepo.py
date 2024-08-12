@@ -190,3 +190,15 @@ def test_filtered_all_files_at_commit():
     )
 
     assert file_list == {".github/workflows/docker-image-to-aws-ecr.yaml"}
+
+
+def test_changed_files_since_first_commit():
+    # This is /this/ git repo.
+    repo = GitHubRepo(
+        location=".",
+        repourl="https://github.com/EO-DataHub/configscanning.git",
+    )
+
+    file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
+
+    assert file_list == {"README.md"}
