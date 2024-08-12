@@ -35,6 +35,7 @@ jobs:
     name: Unshallows repo
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - run: git fetch --unshallow
 
   unit-tests:
