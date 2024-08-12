@@ -180,6 +180,8 @@ def test_filtered_changed_files_between_commits():
 
 def test_filtered_all_files_at_commit():
     # This is /this/ git repo.
+    os.system("git fetch --unshallow https://github.com/EO-DataHub/configscanning.git")
+
     repo = GitHubRepo(
         location=".",
         repourl="https://github.com/EO-DataHub/configscanning.git",
