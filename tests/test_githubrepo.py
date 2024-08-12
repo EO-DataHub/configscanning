@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 # Pycharm is not looking at dev requirements.
@@ -200,5 +201,7 @@ def test_changed_files_since_first_commit():
     )
 
     file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
+
+    os.system("ls -aR")
 
     assert file_list == {"README.md"}
