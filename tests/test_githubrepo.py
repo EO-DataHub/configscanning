@@ -1,5 +1,4 @@
 import os
-import tempfile
 from pathlib import Path
 
 # Pycharm is not looking at dev requirements.
@@ -13,6 +12,7 @@ from configscanning.githubrepo import GitHubRepo
 
 TESTDIR = (Path(__file__).parent / "scratch/configscannertest/").absolute()
 
+# needed for GitHub Actions - doesn't collect commits that are not in shallow repo
 if os.environ.get("CI"):
     os.system("git fetch --unshallow")
 
@@ -183,8 +183,6 @@ def test_filtered_changed_files_between_commits():
 
 def test_filtered_all_files_at_commit():
     # This is /this/ git repo.
-    os.system("git fetch --unshallow")
-
     repo = GitHubRepo(
         location=".",
         repourl="https://github.com/EO-DataHub/configscanning.git",
@@ -201,14 +199,11 @@ def test_filtered_all_files_at_commit():
 
 def test_changed_files_since_first_commit():
     # This is /this/ git repo.
-    with tempfile.TemporaryDirectory() as temp:
-        os.system(f"git clone https://github.com/EO-DataHub/configscanning.git {temp}")
+    repo = GitHubRepo(
+        location=".",
+        repourl="https://github.com/EO-DataHub/configscanning.git",
+    )
 
-        repo = GitHubRepo(
-            location=temp,
-            repourl="https://github.com/EO-DataHub/configscanning.git",
-        )
+    file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
 
-        file_list = repo.changed_files(None, "10143b638f2a3b0316b97a5f959d9f2eaa6776af")
-
-        assert file_list == {"README.md"}
+    assert file_list == {"README.md"}
