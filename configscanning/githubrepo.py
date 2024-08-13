@@ -11,6 +11,7 @@ import pygit2
 from filelock import FileLock
 from github import Auth, Github, GithubIntegration
 from github.Repository import Repository
+from pygit2._pygit2 import GIT_OBJECT_COMMIT
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class GitHubRepo:
         self.repo.create_tag(
             name,
             self.repo.head.target,
-            pygit2.enums.ObjectType.TAG,
+            GIT_OBJECT_COMMIT,
             pygit2.Signature("Config Scanner", "configscanner@ai-pipeline.org"),
             message,
         )
