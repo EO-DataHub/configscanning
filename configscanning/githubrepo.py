@@ -299,7 +299,7 @@ class GitHubRepo:
         self.repo.create_tag(
             name,
             self.repo.head.target,
-            True,
+            pygit2.enums.ObjectType.TAG,
             pygit2.Signature("Config Scanner", "configscanner@ai-pipeline.org"),
             message,
         )
