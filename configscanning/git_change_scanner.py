@@ -281,7 +281,7 @@ def main(parser=None):
 
     # Print update to Repo CR's status field.
     sys.stderr.write(f"Patch is {patch}\n")
-    print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
+    # print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
 
 
 if __name__ == "__main__":
