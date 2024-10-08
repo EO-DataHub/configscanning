@@ -11,6 +11,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+import time
 
 import yaml
 from github.Repository import Repository
@@ -219,6 +220,8 @@ def main(parser=None):
     # This will be printed at the end and is the JSON patch required to update the
     # Repo CR's status.
     patch = {"status": {}}
+
+    time.sleep(300)
 
     # Locate repo / repo destination.
     clonedrepo = GitHubRepo(
