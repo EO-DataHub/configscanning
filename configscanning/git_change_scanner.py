@@ -221,7 +221,7 @@ def main(parser=None):
     # Repo CR's status.
     patch = {"status": {}}
 
-    time.sleep(300)
+    # time.sleep(300)
 
     # Locate repo / repo destination.
     clonedrepo = GitHubRepo(
