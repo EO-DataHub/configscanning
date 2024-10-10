@@ -13,6 +13,7 @@ import shutil
 import sys
 from pathlib import Path
 
+import pygit2
 import yaml
 from github.Repository import Repository
 
@@ -25,6 +26,12 @@ except ImportError:
 from configscanning import k8sutils
 from configscanning.githubrepo import GitHubRepo
 
+# Custom JSON encoder to handle pygit2.Oid objects
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, pygit2.Oid):
+            return str(obj)
+        return super().default(obj)
 
 def get_parser():
     parser = argparse.ArgumentParser()
@@ -290,7 +297,8 @@ def main(parser=None):
     try:
         print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
     except TypeError:
-        print(json.dumps(patch, indent=2))
+        # Serialize using the custom JSON encoder
+        print(json.dumps(patch, cls=CustomJSONEncoder, indent=2))
     except Exception as e:
         print(f"Error: {e}")
 
