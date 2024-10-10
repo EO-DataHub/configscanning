@@ -6,12 +6,14 @@ Workspaces.
 
 import argparse
 import importlib
+import json
 import logging
 import os
 import shutil
 import sys
 from pathlib import Path
 
+import pygit2
 import yaml
 from github.Repository import Repository
 
@@ -23,6 +25,14 @@ except ImportError:
 
 from configscanning import k8sutils
 from configscanning.githubrepo import GitHubRepo
+
+
+# Custom JSON encoder to handle pygit2.Oid objects
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, pygit2.Oid):
+            return str(obj)
+        return super().default(obj)
 
 
 def get_parser():
@@ -134,7 +144,12 @@ def pull(app_id, pkey, clonedrepo):
 
 def scannable_file(fname):
     """This returns true if 'fname' is the name of a file the config scanner should scan."""
-    return fname.endswith(".yaml") or fname.endswith(".yml") or fname.endswith(".json")
+    return (
+        fname.endswith(".yaml")
+        or fname.endswith(".yml")
+        or fname.endswith(".json")
+        or fname.endswith(".cwl")
+    )
 
 
 def config_scan(
@@ -281,7 +296,13 @@ def main(parser=None):
 
     # Print update to Repo CR's status field.
     sys.stderr.write(f"Patch is {patch}\n")
-    print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
+    try:
+        print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
+    except TypeError:
+        # Serialize using the custom JSON encoder
+        print(json.dumps(patch, cls=CustomJSONEncoder, indent=2))
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
