@@ -134,7 +134,12 @@ def pull(app_id, pkey, clonedrepo):
 
 def scannable_file(fname):
     """This returns true if 'fname' is the name of a file the config scanner should scan."""
-    return fname.endswith(".yaml") or fname.endswith(".yml") or fname.endswith(".json")
+    return (
+        fname.endswith(".yaml")
+        or fname.endswith(".yml")
+        or fname.endswith(".json")
+        or fname.endswith(".cwl")
+    )
 
 
 def config_scan(
