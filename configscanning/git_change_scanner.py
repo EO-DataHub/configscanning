@@ -26,12 +26,14 @@ except ImportError:
 from configscanning import k8sutils
 from configscanning.githubrepo import GitHubRepo
 
+
 # Custom JSON encoder to handle pygit2.Oid objects
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, pygit2.Oid):
             return str(obj)
         return super().default(obj)
+
 
 def get_parser():
     parser = argparse.ArgumentParser()
