@@ -11,7 +11,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-import time
+import json
 
 import yaml
 from github.Repository import Repository
@@ -135,7 +135,12 @@ def pull(app_id, pkey, clonedrepo):
 
 def scannable_file(fname):
     """This returns true if 'fname' is the name of a file the config scanner should scan."""
-    return fname.endswith(".yaml") or fname.endswith(".yml") or fname.endswith(".json") or fname.endswith(".cwl")
+    return (
+        fname.endswith(".yaml")
+        or fname.endswith(".yml")
+        or fname.endswith(".json")
+        or fname.endswith(".cwl")
+    )
 
 
 def config_scan(
@@ -221,8 +226,6 @@ def main(parser=None):
     # Repo CR's status.
     patch = {"status": {}}
 
-    # time.sleep(300)
-
     # Locate repo / repo destination.
     clonedrepo = GitHubRepo(
         location=None,
@@ -285,7 +288,12 @@ def main(parser=None):
 
     # Print update to Repo CR's status field.
     sys.stderr.write(f"Patch is {patch}\n")
-    # print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
+    try:
+        print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
+    except BrokenPipeError:
+        print(json.dumps(patch, indent=2))
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
