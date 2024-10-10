@@ -6,12 +6,12 @@ Workspaces.
 
 import argparse
 import importlib
+import json
 import logging
 import os
 import shutil
 import sys
 from pathlib import Path
-import json
 
 import yaml
 from github.Repository import Repository
