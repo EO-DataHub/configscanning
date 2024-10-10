@@ -177,7 +177,6 @@ def config_scan(
 
             # Scan the files.
             for fname in files_to_scan:
-                logging.info("looking at file %s", fname)
                 try:
                     with open(clonedrepo.location / fname, "rt", encoding="utf8") as file:
                         if fname.endswith(".yaml") or fname.endswith(".yml"):
