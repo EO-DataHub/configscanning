@@ -289,7 +289,7 @@ def main(parser=None):
     sys.stderr.write(f"Patch is {patch}\n")
     try:
         print(yaml.dump(patch, Dumper=Dumper, default_flow_style=False))
-    except BrokenPipeError:
+    except TypeError:
         print(json.dumps(patch, indent=2))
     except Exception as e:
         print(f"Error: {e}")
