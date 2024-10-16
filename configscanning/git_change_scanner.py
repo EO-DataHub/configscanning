@@ -301,8 +301,6 @@ def main(parser=None):
     except TypeError:
         # Serialize using the custom JSON encoder
         print(json.dumps(patch, cls=CustomJSONEncoder, indent=2))
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":
