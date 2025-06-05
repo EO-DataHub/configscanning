@@ -149,6 +149,8 @@ def scannable_file(fname):
         or fname.endswith(".yml")
         or fname.endswith(".json")
         or fname.endswith(".cwl")
+        or fname.endswith(".html")
+        or fname.endswith(".txt")
     )
 
 
