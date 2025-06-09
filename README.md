@@ -93,7 +93,7 @@ The following environment variables are used:
 
 ## Development
 
-- Code is in `planet-harvester`.
+- Code is in `configscanning`.
 - Formatting: [Black](https://black.readthedocs.io/), [Ruff](https://docs.astral.sh/ruff/), [isort](https://pycqa.github.io/isort/).
 - Linting: [Pylint](https://pylint.pycqa.org/).
 - Pre-commit checks are installed with `make setup`.
