@@ -91,6 +91,25 @@ The following environment variables are used:
 - `GITHUB_APP_PRIVATE_KEY` - private key for GitHub app (optional, reads in from file instead if not provided) 
 
 
+## Development
+
+- Code is in `planet-harvester`.
+- Formatting: [Black](https://black.readthedocs.io/), [Ruff](https://docs.astral.sh/ruff/), [isort](https://pycqa.github.io/isort/).
+- Linting: [Pylint](https://pylint.pycqa.org/).
+- Pre-commit checks are installed with `make setup`.
+
+Useful Makefile targets:
+
+- `make setup`: Set up or update the dev environment.
+- `make test`: Run tests continuously.
+- `make testonce`: Run tests once.
+- `make lint`: Run all linters and formatters.
+- `make requirements`: Update requirements files from `pyproject.toml`.
+- `make requirements-update`: Update to the latest allowed versions.
+- `make dockerbuild`: Build a Docker image.
+- `make dockerpush`: Push a Docker image.
+
+
 # License
 
 This project is licensed under the Telespazio UK Ltd Apache 2.0 Licence. See [LICENSE](LICENSE.txt) for details.
