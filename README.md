@@ -93,4 +93,4 @@ The following environment variables are used:
 
 # License
 
-This project is licensed under the Telespazio UK Ltd  Apache 2.0 Licence. See [LICENSE](LICENSE.txt) for details.
+This project is licensed under the Telespazio UK Ltd Apache 2.0 Licence. See [LICENSE](LICENSE.txt) for details.
