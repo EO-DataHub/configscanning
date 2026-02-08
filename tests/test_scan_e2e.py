@@ -1,9 +1,11 @@
 from pathlib import Path
+from typing import Any
 
 import pygit2
 
 # noinspection PyPackageRequirements
 import pytest
+from pygit2.enums import ObjectType
 
 import configscanning.git_change_scanner
 import configscanning.scanners.filelister
@@ -11,7 +13,7 @@ from configscanning.githubrepo import GitHubRepo
 
 
 @pytest.mark.integrationtest
-def test_scan_for_yaml(tmpdir):
+def test_scan_for_yaml(tmpdir: Any) -> None:
     repo = GitHubRepo(
         location=None,
         parent_dir=str(tmpdir),
@@ -47,10 +49,8 @@ def test_scan_for_yaml(tmpdir):
     }
 
     # Got c00330d7f1c8f8fd460753a2c946a831b8320a8a
-    assert (
-        repo.repo.references["refs/tags/_SCANNED_main"].peel().id
-        == "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9"
-    )
+    assert repo.repo is not None
+    assert repo.repo.references["refs/tags/_SCANNED_main"].peel().id == "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9"
 
     # Now we test a scan of changes since a particular prior commit.
     repo.checkout_and_reset("refs/heads/main")
@@ -58,7 +58,7 @@ def test_scan_for_yaml(tmpdir):
     repo.repo.create_tag(
         "_SCANNED_main",
         repo.repo["a30c19e3f13765a3b48829788bc1cb8b4e95cee4"].id,
-        True,
+        ObjectType.COMMIT,
         pygit2.Signature("Name", "email@example.com"),
         "Test tag",
     )
@@ -74,10 +74,8 @@ def test_scan_for_yaml(tmpdir):
         Path("styles.css"),
     }
 
-    assert (
-        repo.repo.references["refs/tags/_SCANNED_main"].peel().id
-        == "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9"
-    )
+    assert repo.repo is not None
+    assert repo.repo.references["refs/tags/_SCANNED_main"].peel().id == "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9"
 
     # Finally, we test that scanning with --full-scan ignores the tag and scans everything.
     configscanning.scanners.filelister.visited_files = []

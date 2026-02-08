@@ -1,9 +1,6 @@
 import os
 from pathlib import Path
-
-# Pycharm is not looking at dev requirements.
-# noinspection PyPackageRequirements
-import py.path
+from typing import Any
 
 # noinspection PyPackageRequirements
 import pytest
@@ -17,7 +14,7 @@ if os.environ.get("CI"):
     os.system("git fetch --unshallow")
 
 
-def test_determines_repo_name_and_local_location_from_url():
+def test_determines_repo_name_and_local_location_from_url() -> None:
     repo = GitHubRepo(
         location=None,
         parent_dir=str(TESTDIR),
@@ -30,7 +27,7 @@ def test_determines_repo_name_and_local_location_from_url():
     assert repo.location == TESTDIR / "github.com/octocat/Spoon-Knife"
 
 
-def test_determines_parent_dir_from_location():
+def test_determines_parent_dir_from_location() -> None:
     repo = GitHubRepo(
         location=str(TESTDIR / "github.com/octocat/Spoon-Knife"),
         repourl="https://github.com/octocat/Spoon-Knife.git",
@@ -43,7 +40,7 @@ def test_determines_parent_dir_from_location():
 
 
 @pytest.mark.integrationtest
-def test_clone_public_repo_with_only_main_branch(tmpdir: py.path.local):
+def test_clone_public_repo_with_only_main_branch(tmpdir: Any) -> None:
     repo = GitHubRepo(
         location=None,
         parent_dir=str(tmpdir),
@@ -72,7 +69,7 @@ def test_clone_public_repo_with_only_main_branch(tmpdir: py.path.local):
 
 
 @pytest.mark.integrationtest
-def test_clone_public_repo_with_nonstandard_branches(tmpdir: py.path.local):
+def test_clone_public_repo_with_nonstandard_branches(tmpdir: Any) -> None:
     repo = GitHubRepo(
         location=None,
         parent_dir=str(tmpdir),
@@ -146,7 +143,7 @@ def test_clone_public_repo_with_nonstandard_branches(tmpdir: py.path.local):
     }
 
 
-def test_changed_files_between_commits():
+def test_changed_files_between_commits() -> None:
     # This is /this/ git repo.
     repo = GitHubRepo(
         location=".",
@@ -165,7 +162,7 @@ def test_changed_files_between_commits():
     }
 
 
-def test_filtered_changed_files_between_commits():
+def test_filtered_changed_files_between_commits() -> None:
     # This is /this/ git repo.
     repo = GitHubRepo(
         location=".",
@@ -181,7 +178,7 @@ def test_filtered_changed_files_between_commits():
     assert file_list == {".github/workflows/actions.yaml"}
 
 
-def test_filtered_all_files_at_commit():
+def test_filtered_all_files_at_commit() -> None:
     # This is /this/ git repo.
     repo = GitHubRepo(
         location=".",
@@ -197,7 +194,7 @@ def test_filtered_all_files_at_commit():
     assert file_list == {".github/workflows/docker-image-to-aws-ecr.yaml"}
 
 
-def test_changed_files_since_first_commit():
+def test_changed_files_since_first_commit() -> None:
     # This is /this/ git repo.
     repo = GitHubRepo(
         location=".",

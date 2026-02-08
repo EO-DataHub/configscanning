@@ -6,12 +6,15 @@ Workspaces.
 
 import argparse
 import importlib
+import importlib.util
 import json
 import logging
 import os
 import shutil
 import sys
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
+from typing import Any, Protocol
 
 import pygit2
 import yaml
@@ -29,18 +32,16 @@ from configscanning.githubrepo import GitHubRepo
 
 # Custom JSON encoder to handle pygit2.Oid objects
 class CustomJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, pygit2.Oid):
-            return str(obj)
-        return super().default(obj)
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pygit2.Oid):
+            return str(o)
+        return super().default(o)
 
 
-def get_parser():
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("repourl", help="repository URL", type=str)
-    parser.add_argument(
-        "dest", help="checkout location (parent dir of clone)", type=str, default="."
-    )
+    parser.add_argument("dest", help="checkout location (parent dir of clone)", type=str, default=".")
     parser.add_argument(
         "--app-id-from",
         help="Location of file containing GitHub app ID (note: not 'client id')",
@@ -97,7 +98,7 @@ def get_parser():
     return parser
 
 
-def args_to_dictionary(args: list) -> dict:
+def args_to_dictionary(args: list[str]) -> dict[str, str]:
     """Converts a list of args in the format ['--a', 'A', '--b', 'B'] to a dictionary: {'a': A, 'b': 'B'}"""
     dictionary = {}
     key = None
@@ -111,7 +112,7 @@ def args_to_dictionary(args: list) -> dict:
     return dictionary
 
 
-def pull(app_id, pkey, clonedrepo):
+def pull(app_id: int | str | None, pkey: str | None, clonedrepo: GitHubRepo) -> dict[str, Any]:
     """Clones or updates the local repo from its origin"""
     # We take out a lock to prevent concurrent execution of another pull
     # or delete.
@@ -129,7 +130,7 @@ def pull(app_id, pkey, clonedrepo):
         gh_repo_data: Repository = clonedrepo.get_github_repo()
         pushed_time = int(gh_repo_data.pushed_at.timestamp())
         os.makedirs(Path(clonedrepo.location).parent, exist_ok=True)
-        with open(f"{clonedrepo.location}.upstream_push_time", "wt", encoding="ascii") as fobj:
+        with open(f"{clonedrepo.location}.upstream_push_time", "w", encoding="ascii") as fobj:
             fobj.write(str(pushed_time))
 
         # Update / clone repo
@@ -142,7 +143,7 @@ def pull(app_id, pkey, clonedrepo):
         }
 
 
-def scannable_file(fname):
+def scannable_file(fname: str) -> bool:
     """This returns true if 'fname' is the name of a file the config scanner should scan."""
     return (
         fname.endswith(".yaml")
@@ -154,15 +155,20 @@ def scannable_file(fname):
     )
 
 
+class _ScannerProtocol(Protocol):
+    def scan_file(self, fname: Path, data: Any) -> None: ...
+    def finish(self) -> None: ...
+
+
 def config_scan(
     clonedrepo: GitHubRepo,
-    branch_scanner_objs: dict[str, set[object]],
-    scan_filter=scannable_file,
-    full_scan=False,
-):
+    branch_scanner_objs: Mapping[str, Iterable[_ScannerProtocol]],
+    scan_filter: Callable[[str], bool] = scannable_file,
+    full_scan: bool = False,
+) -> dict[str, Any]:
     """Scans and processes the config files in the cloned repo"""
     with clonedrepo.lock:
-        with open(f"{clonedrepo.location}.upstream_push_time", "rt", encoding="ascii") as fobj:
+        with open(f"{clonedrepo.location}.upstream_push_time", encoding="ascii") as fobj:
             pushed_time = int(fobj.read())
 
         for branch, scanner_objs in branch_scanner_objs.items():
@@ -178,18 +184,14 @@ def config_scan(
             last_scan_tag = f"_SCANNED_{branch}"
             last_scan_tag_ref = f"refs/tags/{last_scan_tag}"
             files_to_scan = clonedrepo.changed_files(
-                (
-                    last_scan_tag
-                    if not full_scan and clonedrepo.has_ref(last_scan_tag_ref)
-                    else None
-                ),
+                (last_scan_tag if not full_scan and clonedrepo.has_ref(last_scan_tag_ref) else None),
                 only_matching=scan_filter,
             )
 
             # Scan the files.
             for fname in files_to_scan:
                 try:
-                    with open(clonedrepo.location / fname, "rt", encoding="utf8") as file:
+                    with open(clonedrepo.location / fname, encoding="utf8") as file:
                         if fname.endswith(".yaml") or fname.endswith(".yml"):
                             data = yaml.load(file, SafeLoader)
                         elif fname.endswith(".json"):
@@ -217,7 +219,7 @@ def config_scan(
         }
 
 
-def main(parser=None):
+def main(parser: argparse.ArgumentParser | None = None) -> None:
     """
     This runs when we're invoked as a command-line tool. It's a separate function so that its
     variables have non-global scope.
@@ -254,15 +256,17 @@ def main(parser=None):
 
         scanner_mods = []
         for modname in args.enable_scanner:
-            dir, module_name = os.path.split(os.path.abspath(modname))
-            sys.path.append(dir)
+            dir_path, module_name = os.path.split(os.path.abspath(modname))
+            sys.path.append(dir_path)
             spec = importlib.util.find_spec(module_name)
+            assert spec is not None
+            assert spec.loader is not None
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
             scanner_mods.append(module)
 
-        def create_scanner_objs(namespace, is_prod):
+        def create_scanner_objs(namespace: str, is_prod: bool) -> list[_ScannerProtocol]:
             return list(
                 map(
                     lambda mod: mod.Scanner(

@@ -1,6 +1,6 @@
 """Tools for use with GitHub Organizations"""
 
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from github import Auth, GithubIntegration
 from github.Installation import Installation
@@ -11,15 +11,15 @@ class AIPIPEGitHubOrganization:
     """This represents a GitHub Organization which we believe is linked to an AIPIPE Workspace"""
 
     orgname: str
-    teamname: str
+    teamname: str | None
     # _github: [Github | None]
-    _gh_installation: Optional[Installation]
+    _gh_installation: Installation | None
 
     def __init__(
         self,
         orgname: str,
         teamname: str | None,
-    ):
+    ) -> None:
         """
         This represents a GitHub Organization and, optionally, Team, usually one we believe is
         linked to our Workspace(s).
@@ -31,7 +31,7 @@ class AIPIPEGitHubOrganization:
         self._gh_installation = None
         self._access_token = None
 
-    def authenticate_to_github(self, app_id: int, app_private_key: str):
+    def authenticate_to_github(self, app_id: int | str | None, app_private_key: str | None) -> None:
         """
         Authenticate to GitHub as an app installation.
 
@@ -43,12 +43,14 @@ class AIPIPEGitHubOrganization:
                                      management page github.com/organizations/org/settings/apps
         """
         # First we must authenticate as the app, which gives us limited access.
+        assert app_id is not None
+        assert app_private_key is not None
         auth = Auth.AppAuth(app_id, app_private_key)
         ghi = GithubIntegration(auth=auth)
 
         # We can use this to find the app installation for the organization, then get an
         # authenticated client object from there.
-        self._gh_installation: Installation = ghi.get_org_installation(self.orgname)
+        self._gh_installation = ghi.get_org_installation(self.orgname)
 
         # Now we can get a full client object which can use the full Organization APIs.
         # self._github = gh_installation.get_github_for_installation()
@@ -61,10 +63,11 @@ class AIPIPEGitHubOrganization:
         specified, are accessible to the Team. This may exclude some repos if the Organization
         admin has limited our app's access.
         """
+        assert self._gh_installation is not None
         repos = self._gh_installation.get_repos()
         if self.teamname is not None:
 
-            def team_can_see_repo(repo: Repository):
+            def team_can_see_repo(repo: Repository) -> bool:
                 return any(map(lambda team: team.name == self.teamname, repo.get_teams()))
 
             repos = [repo for repo in repos if team_can_see_repo(repo)]
