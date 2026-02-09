@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from collections.abc import Generator
 from tempfile import TemporaryDirectory
 
 import boto3
@@ -19,7 +20,7 @@ from configscanning.comparefiles import (
 
 
 @pytest.fixture
-def parameters(mock_folder):
+def parameters(mock_folder: str) -> dict[str, str]:
     return {
         "folder": f"{mock_folder}/",
         "bucket_name": "test_bucket",
@@ -29,16 +30,16 @@ def parameters(mock_folder):
 
 
 @pytest.fixture
-def mock_folder():
+def mock_folder() -> Generator[str]:
     with TemporaryDirectory() as d:
         yield d
 
 
-def mock_init_k8s():
+def mock_init_k8s() -> None:
     return
 
 
-def test_get_repo_contents(parameters, mock_folder):
+def test_get_repo_contents(parameters: dict[str, str], mock_folder: str) -> None:
     test_file_name = "test_file.txt"
     test_file_contents = "file contents\n"
     with open(f"{mock_folder}/{test_file_name}", "w") as f:
@@ -48,7 +49,7 @@ def test_get_repo_contents(parameters, mock_folder):
     assert folder_contents == [test_file_name]
 
 
-def test_get_s3_contents(parameters, mock_folder):
+def test_get_s3_contents(parameters: dict[str, str], mock_folder: str) -> None:
     test_file_name = "test/test_file.txt"
 
     with moto.mock_aws(), tempfile.NamedTemporaryFile() as temp_file:
@@ -68,7 +69,7 @@ def test_get_s3_contents(parameters, mock_folder):
         assert files[0].key == test_file_name
 
 
-def test_match_file__is_file(parameters):
+def test_match_file__is_file(parameters: dict[str, str]) -> None:
     with moto.mock_aws(), tempfile.NamedTemporaryFile() as temp_file:
         temp_directory = tempfile.gettempdir()
 
@@ -83,41 +84,41 @@ def test_match_file__is_file(parameters):
         s3.upload_file(temp_file.name, parameters["bucket_name"], test_file_name)
 
         s3_resource = boto3.resource("s3")
-        s3_files = s3_resource.Bucket(parameters["bucket_name"]).objects.all()
+        s3_files = list(s3_resource.Bucket(parameters["bucket_name"]).objects.all())
 
         file = match_file(test_file_name, s3_files, temp_directory, "")
-
+        assert file is not None
         assert file.key == test_file_name
 
 
-def test_match_file__no_file(parameters):
+def test_match_file__no_file(parameters: dict[str, str]) -> None:
     test_file_name = "test_file.txt"
     with moto.mock_aws():
         s3 = boto3.client("s3", region_name="us-east-1")
         s3.create_bucket(Bucket=parameters["bucket_name"])
 
         s3_resource = boto3.resource("s3")
-        s3_files = s3_resource.Bucket(parameters["bucket_name"]).objects.all()
+        s3_files = list(s3_resource.Bucket(parameters["bucket_name"]).objects.all())
 
         file = match_file(test_file_name, s3_files, "/tmp/", "")
 
         assert file is None
 
 
-def test_match_file__is_directory(parameters):
+def test_match_file__is_directory(parameters: dict[str, str]) -> None:
     with moto.mock_aws():
         s3 = boto3.client("s3", region_name="us-east-1")
         s3.create_bucket(Bucket=parameters["bucket_name"])
 
         s3_resource = boto3.resource("s3")
-        s3_files = s3_resource.Bucket(parameters["bucket_name"]).objects.all()
+        s3_files = list(s3_resource.Bucket(parameters["bucket_name"]).objects.all())
 
         file = match_file("/tmp", s3_files, "/tmp/", "")
 
         assert file is None
 
 
-def test_update_file(parameters):
+def test_update_file(parameters: dict[str, str]) -> None:
     with moto.mock_aws(), tempfile.NamedTemporaryFile() as temp_file:
         test_file_path = temp_file.name
         test_file_name = test_file_path.split("/")[-1]
@@ -136,7 +137,7 @@ def test_update_file(parameters):
         assert s3_files[0].key == test_file_name
 
 
-def test_delete_file(parameters):
+def test_delete_file(parameters: dict[str, str]) -> None:
     with moto.mock_aws(), tempfile.NamedTemporaryFile() as temp_file:
         test_file_path = temp_file.name
         test_file_name = test_file_path.split("/")[-1]
@@ -149,7 +150,7 @@ def test_delete_file(parameters):
         s3.upload_file(temp_file.name, parameters["bucket_name"], test_file_name)
 
         s3_resource = boto3.resource("s3")
-        file_to_delete = list(s3_resource.Bucket(parameters["bucket_name"]).objects.all())[0]
+        file_to_delete = next(iter(s3_resource.Bucket(parameters["bucket_name"]).objects.all()))
 
         delete_file(file_to_delete)
 
@@ -157,7 +158,7 @@ def test_delete_file(parameters):
         assert len(s3_files) == 0
 
 
-def test_main__same_file(parameters, monkeypatch):
+def test_main__same_file(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], ""]
@@ -187,7 +188,7 @@ def test_main__same_file(parameters, monkeypatch):
         assert len(s3_files) == 1
 
 
-def test_main__different_file(parameters, monkeypatch):
+def test_main__different_file(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], ""]
@@ -224,7 +225,7 @@ def test_main__different_file(parameters, monkeypatch):
         assert file_content == "new contents\n"
 
 
-def test_main__s3_only_file(parameters, monkeypatch):
+def test_main__s3_only_file(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], "test"]
@@ -255,7 +256,7 @@ def test_main__s3_only_file(parameters, monkeypatch):
         assert len(s3_files) == 0
 
 
-def test_main__local_only_file(parameters, monkeypatch):
+def test_main__local_only_file(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], "test"]
@@ -282,7 +283,7 @@ def test_main__local_only_file(parameters, monkeypatch):
         assert len(s3_files) == 1
 
 
-def test_main__s3_excluded_dir(parameters, monkeypatch):
+def test_main__s3_excluded_dir(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], "another_folder"]
@@ -313,7 +314,7 @@ def test_main__s3_excluded_dir(parameters, monkeypatch):
         assert len(s3_files) == 1
 
 
-def test_main__s3_excluded_dir_top_level(parameters, monkeypatch):
+def test_main__s3_excluded_dir_top_level(parameters: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(k8sutils, "init_k8s", mock_init_k8s)
     with moto.mock_aws(), tempfile.TemporaryDirectory() as temp_dir:
         sys.argv = [None, temp_dir, parameters["bucket_name"], "subdir"]

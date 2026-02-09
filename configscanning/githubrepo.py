@@ -3,15 +3,16 @@
 import logging
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any
 from urllib.parse import ParseResult, urlparse
 
 import pygit2
 from filelock import FileLock
 from github import Auth, Github, GithubIntegration
 from github.Repository import Repository
-from pygit2._pygit2 import GIT_OBJECT_COMMIT
+from pygit2.enums import BranchType, ObjectType, ResetMode
 
 logger = logging.getLogger(__name__)
 
@@ -22,25 +23,25 @@ class GitHubRepo:
     """This represents a cloned repo"""
 
     location: Path
-    parent_dir: Path
-    repourl: str
+    parent_dir: Path | None
+    repourl: str | None
     repourlobj: ParseResult
     gh_org: str
     gh_reponame: str
     branches_to_fetch: set[str]
-    _github: [Github | None]
-    _gh_repo: [Repository | None]
+    _github: Github | None
+    _gh_repo: Repository | None
 
     # This is a gitpython Repo if a clone exists, otherwise None
     repo: pygit2.Repository | None
 
     def __init__(
         self,
-        location: [str | Path | None] = None,
-        parent_dir: [str | Path | None] = None,
-        repourl: str = None,
-        branches_to_fetch=None,
-    ):
+        location: str | Path | None = None,
+        parent_dir: str | Path | None = None,
+        repourl: str | None = None,
+        branches_to_fetch: set[str] | None = None,
+    ) -> None:
         """
         This represents a repo to be cloned and kept up-to-date within the AIPIPE platform.
 
@@ -62,9 +63,9 @@ class GitHubRepo:
             branches_to_fetch = {"main"}
 
         self.repourl = repourl
-        self.repourlobj = urlparse(repourl)
+        self.repourlobj = urlparse(repourl or "")
         self.branches_to_fetch = branches_to_fetch
-        self.parent_dir = parent_dir and Path(parent_dir)
+        self.parent_dir = Path(parent_dir) if parent_dir is not None else None
         self._github = None
         self._gh_repo = None
         self._access_token = None
@@ -72,11 +73,12 @@ class GitHubRepo:
         path_parts = self.repourlobj.path[1:].split("/")
         self.gh_org = path_parts[0]
         self.gh_reponame = path_parts[1]
-        if self.gh_reponame.endswith(".git"):
-            self.gh_reponame = self.gh_reponame[:-4]
+        self.gh_reponame = self.gh_reponame.removesuffix(".git")
+        git_host = self.repourlobj.hostname or ""
 
         if location is None:
-            self.location = Path() / parent_dir / self.git_host / self.gh_org / self.gh_reponame
+            assert parent_dir is not None
+            self.location = Path() / parent_dir / git_host / self.gh_org / self.gh_reponame
         else:
             self.location = Path(location)
 
@@ -88,17 +90,17 @@ class GitHubRepo:
         except pygit2.GitError:  # pylint disable=no-member  (use of C wrapper breaks linting)
             self.repo = None
 
+        assert self.parent_dir is not None
         self.lock = FileLock(
-            self.parent_dir
-            / ("_AIPIPE_LOCK_" + self.git_host + "-" + self.gh_org + "-" + self.gh_reponame),
+            self.parent_dir / ("_AIPIPE_LOCK_" + git_host + "-" + self.gh_org + "-" + self.gh_reponame),
         )
 
     @property
-    def git_host(self):
+    def git_host(self) -> str:
         """Returns the hostname of the github server"""
-        return self.repourlobj.hostname
+        return self.repourlobj.hostname or ""
 
-    def authenticate_to_github(self, app_id: Optional[int], app_private_key: Optional[str]):
+    def authenticate_to_github(self, app_id: int | str | None, app_private_key: str | None) -> Github:
         """
         Authenticate to GitHub as an app.
 
@@ -128,36 +130,39 @@ class GitHubRepo:
             self._github = gh_installation.get_github_for_installation()
 
             # We need this token for use with gitpython so that we can clone private repos.
-            # pylint: disable=protected-access
-            # noinspection PyProtectedMember
-            self._access_token = self._github._Github__requester.auth.token
+            # Access the internal requester via name-mangled attribute.
+            _requester_attr = "_Github__requester"
+            self._access_token = getattr(self._github, _requester_attr).auth.token
 
+        assert self._github is not None
         return self._github
 
     def get_github_repo(self) -> Repository:
         """Returns a github.Repository object representing the repo"""
+        assert self._github is not None
         if self._gh_repo is None:
             self._gh_repo = self._github.get_repo(f"{self.gh_org}/{self.gh_reponame}")
         return self._gh_repo
 
-    def _refspecs_to_pull(self):
+    def _refspecs_to_pull(self) -> list[str]:
         """
         This returns a list of refspecs we should fetch from our remote, eg
           ["refs/heads/main:refs/remotes/origin/main"]
         """
-        return [
-            f"refs/heads/{branch}:refs/remotes/origin/{branch}" for branch in self.branches_to_fetch
-        ]
+        return [f"refs/heads/{branch}:refs/remotes/origin/{branch}" for branch in self.branches_to_fetch]
 
-    def ref_positions(self) -> dict[str, str]:
+    def ref_positions(self) -> dict[str, Any]:
         """
         Returns a map from relevant branch/tag/... name to the commit it currently points to.
         Only returns results for branches in self.branches_to_fetch
         """
+        assert self.repo is not None
 
-        def data_for_branch(branch_name):
+        def data_for_branch(branch_name: str) -> dict[str, Any]:
+            assert self.repo is not None
             commit_id = self.repo.branches[branch_name].target
-            commit: pygit2.Commit = self.repo.get(commit_id)
+            commit = self.repo.get(commit_id)
+            assert isinstance(commit, pygit2.Commit)
             return {
                 "hash": commit.id,
                 "summary": commit.message.split("\n")[0],
@@ -170,7 +175,7 @@ class GitHubRepo:
             if branch_name in self.branches_to_fetch
         }
 
-    def update(self):
+    def update(self) -> None:
         """
         Updates our clone of the repo, creating it if necessary.
 
@@ -184,8 +189,8 @@ class GitHubRepo:
         #
         # For that reason, we can't just use the list of branches we're given, we need to remove
         # any non-existent ones.
-        self.get_github_repo()
-        available_branches = set(map(lambda b: b.name, self._gh_repo.get_branches()))
+        gh_repo = self.get_github_repo()
+        available_branches = set(map(lambda b: b.name, gh_repo.get_branches()))
         self.branches_to_fetch = self.branches_to_fetch & available_branches
         refspecs = self._refspecs_to_pull()
 
@@ -195,9 +200,7 @@ class GitHubRepo:
                 # No clone or clone is invalid at time of construction.
                 # Check again now lock held.
                 try:
-                    self.repo = pygit2.Repository(
-                        self.location, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH
-                    )
+                    self.repo = pygit2.Repository(self.location, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
                 except pygit2.GitError:  # pylint disable=no-member
                     self.repo = None
 
@@ -215,6 +218,7 @@ class GitHubRepo:
                     initial_head="main",
                 )
 
+                assert self.repourl is not None
                 self.repo.remotes.create("origin", self.repourl, fetch=refspecs[0])
 
                 for refspec in refspecs[1:]:
@@ -223,15 +227,14 @@ class GitHubRepo:
                 logger.debug(self.ref_positions())
 
             # Repo now exists.
+            assert self.repo is not None
             #
             # First, fetch from remotes. ie, refs/remotes/origin/<branches> become up-to-date with
             # what's in GitHub
             logger.info(f"Fetching for repo {self.repourl} clone in {self.location}")
 
-            transfer_progress: pygit2.remote.TransferProgress = self.repo.remotes["origin"].fetch(
-                callbacks=pygit2.RemoteCallbacks(
-                    credentials=pygit2.UserPass("none", self._access_token)
-                )
+            transfer_progress = self.repo.remotes["origin"].fetch(
+                callbacks=pygit2.RemoteCallbacks(credentials=pygit2.UserPass("none", self._access_token or ""))
             )
 
             logger.info(f"Fetched {transfer_progress}")
@@ -240,15 +243,15 @@ class GitHubRepo:
             # We assume we can simply fast-forward here, which should be true.
             for branch in self.branches_to_fetch:
                 logger.debug(f"Updating branch {branch}")
-                remote_branch: pygit2.Branch = self.repo.lookup_branch(
-                    f"origin/{branch}", pygit2.GIT_BRANCH_REMOTE
-                )
+                remote_branch: pygit2.Branch = self.repo.lookup_branch(f"origin/{branch}", BranchType.REMOTE)
                 logger.debug(f"Remote branch at {remote_branch.target}")
 
                 if branch not in self.repo.branches.local:
                     # No local branch - create it
                     logger.info(f"Creating local branch {branch}")
-                    self.repo.branches.create(branch, self.repo.get(remote_branch.target))
+                    remote_commit = self.repo.get(remote_branch.target)
+                    assert isinstance(remote_commit, pygit2.Commit)
+                    self.repo.branches.create(branch, remote_commit)
                 else:
                     logger.info(f"Fast-forwarding local branch {branch}")
                     self.repo.checkout(f"refs/heads/{branch}")
@@ -258,11 +261,14 @@ class GitHubRepo:
 
             logger.debug(self.ref_positions())
 
-    def has_ref(self, ref):
+    def has_ref(self, ref: str) -> bool:
         """Returns true if ref (eg, 'refs/tags/tagname') is known in the repo"""
+        assert self.repo is not None
         return ref in self.repo.references
 
-    def changed_files(self, since, until="HEAD", only_matching=lambda fname: True):
+    def changed_files(
+        self, since: str | None, until: str = "HEAD", only_matching: Callable[[str], bool] = lambda fname: True
+    ) -> set[str]:
         """
         Return a set containing the paths (relative to repo root) of all files which:
           1) if 'since' is not None, have been changed between commit/ref 'since' and the current
@@ -274,6 +280,7 @@ class GitHubRepo:
               current branch, whereas changed_files("refs/tags/_SCANNED_main") will find
               all files changed between tag _SCANNED_main and the current work dir.
         """
+        assert self.repo is not None
         if since is None:
             deltas = self.repo.revparse_single(until).peel(pygit2.Tree).diff_to_tree().deltas
         else:
@@ -281,26 +288,29 @@ class GitHubRepo:
 
         return {delta.new_file.path for delta in deltas if only_matching(delta.new_file.path)}
 
-    def checkout_and_reset(self, ref):
+    def checkout_and_reset(self, ref: str) -> None:
         """Set up the working directory with what is pointing to by 'ref', deleting any existing
         changes."""
+        assert self.repo is not None
         self.repo.checkout(ref)
-        self.repo.reset(self.repo.lookup_reference(ref).target, pygit2.GIT_RESET_HARD)
+        self.repo.reset(self.repo.lookup_reference(ref).target, ResetMode.HARD)
 
-    def delete_tag(self, name):
+    def delete_tag(self, name: str) -> None:
         """Delete the named tag, if it exists, otherwise do nothing"""
+        assert self.repo is not None
         tagref = f"refs/tags/{name}"
         if tagref in self.repo.references:
             # Tag exists - delete it.
             self.repo.references[tagref].delete()
 
-    def create_tag(self, name, message):
+    def create_tag(self, name: str, message: str) -> None:
         """Create the tag specified pointing at the current HEAD. Deletes any old tag."""
+        assert self.repo is not None
         self.delete_tag(name)
         self.repo.create_tag(
             name,
             self.repo.head.target,
-            GIT_OBJECT_COMMIT,
+            ObjectType.COMMIT,
             pygit2.Signature("Config Scanner", "configscanner@ai-pipeline.org"),
             message,
         )

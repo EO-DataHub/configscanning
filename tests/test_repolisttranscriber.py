@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest import mock
 from unittest.mock import Mock
 
+import pytest
 from pytest_mock import MockerFixture
 
 import configscanning.repolisttranscriber
@@ -11,7 +12,7 @@ from configscanning.repolisttranscriber import SourceAndTarget, transcribe
 # noinspection PyPackageRequirements
 
 
-def test_get_all_sync_targets_returns_correct_targets(mocker: MockerFixture):
+def test_get_all_sync_targets_returns_correct_targets(mocker: MockerFixture) -> None:
     mocker.patch("kubernetes.config")
     mocker.patch("kubernetes.client")
     dyn_mock = mocker.patch("kubernetes.dynamic.DynamicClient")
@@ -32,16 +33,12 @@ def test_get_all_sync_targets_returns_correct_targets(mocker: MockerFixture):
     all_workspaces = configscanning.repolisttranscriber.tosync_for_all_workspaces()
 
     assert all_workspaces == [
-        configscanning.repolisttranscriber.SourceAndTarget(
-            organization="org1", team="team1", namespace="ns1"
-        ),
-        configscanning.repolisttranscriber.SourceAndTarget(
-            organization="org2", team=None, namespace="ns2"
-        ),
+        configscanning.repolisttranscriber.SourceAndTarget(organization="org1", team="team1", namespace="ns1"),
+        configscanning.repolisttranscriber.SourceAndTarget(organization="org2", team=None, namespace="ns2"),
     ]
 
 
-def test_get_sync_targets_for_workspace_returns_correct_targets(mocker: MockerFixture):
+def test_get_sync_targets_for_workspace_returns_correct_targets(mocker: MockerFixture) -> None:
     mocker.patch("kubernetes.config")
     mocker.patch("kubernetes.client")
     dyn_mock = mocker.patch("kubernetes.dynamic.DynamicClient")
@@ -56,12 +53,10 @@ def test_get_sync_targets_for_workspace_returns_correct_targets(mocker: MockerFi
 
     ws = configscanning.repolisttranscriber.tosync_for_workspace("ws1")
 
-    assert ws == configscanning.repolisttranscriber.SourceAndTarget(
-        organization="org1", team="team1", namespace="ns1"
-    )
+    assert ws == configscanning.repolisttranscriber.SourceAndTarget(organization="org1", team="team1", namespace="ns1")
 
 
-def test_transcribe_no_targets_does_nothing(mocker: MockerFixture):
+def test_transcribe_no_targets_does_nothing(mocker: MockerFixture) -> None:
     mocker.patch("kubernetes.config")
     mocker.patch("kubernetes.client")
     ghorg_mock = mocker.patch("configscanning.repolisttranscriber.AIPIPEGitHubOrganization")
@@ -80,7 +75,7 @@ def test_transcribe_no_targets_does_nothing(mocker: MockerFixture):
     repoapi.create.assert_not_called()
 
 
-def test_transcribe_synchronizes_difference(mocker: MockerFixture, caplog):
+def test_transcribe_synchronizes_difference(mocker: MockerFixture, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG)
     mocker.patch("kubernetes.config")
     mocker.patch("kubernetes.client")

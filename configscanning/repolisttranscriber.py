@@ -13,9 +13,7 @@ import argparse
 import logging
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
-from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.resource import ResourceInstance
 
 from configscanning import k8sutils
@@ -69,8 +67,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--namespace",
-    help="This command will transcribe into the specified namespace. --organization must also "
-    + "be specified.",
+    help="This command will transcribe into the specified namespace. --organization must also " + "be specified.",
     type=str,
 )
 parser.add_argument(
@@ -90,11 +87,11 @@ parser.add_argument(
 @dataclass
 class SourceAndTarget:
     organization: str
-    team: Optional[str]
+    team: str | None
     namespace: str
 
 
-def tosync_for_all_workspaces():
+def tosync_for_all_workspaces() -> list[SourceAndTarget]:
     """Find all Workspaces in our Kubernetes cluster and create a SourceAndTarget for each."""
     src_targets: list[SourceAndTarget] = []
 
@@ -115,7 +112,7 @@ def tosync_for_all_workspaces():
     return src_targets
 
 
-def tosync_for_workspace(name) -> SourceAndTarget:
+def tosync_for_workspace(name: str) -> SourceAndTarget:
     """Find the Workspace in our Kubernetes cluster and create a SourceAndTarget."""
     with k8sutils.aipipe_resource_dclient("Workspace") as workspaceapi:
         workspace = workspaceapi.get(name=name)
@@ -128,21 +125,19 @@ def tosync_for_workspace(name) -> SourceAndTarget:
         )
 
 
-def transcribe(app_id, pkey, src_tgt: SourceAndTarget, workspace_name: str = None):
+def transcribe(
+    app_id: int | str | None, pkey: str | None, src_tgt: SourceAndTarget, workspace_name: str | None = None
+) -> None:
     """Synchronize repo data from the source in GitHub to the target in our Kubernetes cluster"""
     # First, we need the repo data from GitHub.
     ghorg = AIPIPEGitHubOrganization(src_tgt.organization, src_tgt.team)
     ghorg.authenticate_to_github(app_id, pkey)
     gh_repos = {r.name: r for r in ghorg.get_repos()}
-    logger.info(
-        f"Got repo list from GitHub org/team {src_tgt.organization}:{src_tgt.team}: "
-        + f"{gh_repos}"
-    )
+    logger.info(f"Got repo list from GitHub org/team {src_tgt.organization}:{src_tgt.team}: " + f"{gh_repos}")
 
     # And also the corresponding list of Repos from our cluster.
     with k8sutils.aipipe_resource_dclient("Repo") as repoapi:
         print(f"{type(repoapi)=}, {repoapi=}, {repoapi.delete=}")
-        repoapi: DynamicClient
 
         k8s_repos: dict[str, ResourceInstance] = {}
         # The type of this is ResourceInstance[RepoList] and it's a list of all Workspaces.
@@ -219,26 +214,32 @@ def transcribe(app_id, pkey, src_tgt: SourceAndTarget, workspace_name: str = Non
 
             gh_lastmod = int(gh_repo.pushed_at.timestamp())
             k8s_lastmod = k8s_repo.get("status", {}).get("remotePosition", {}).get("lastModified")
+            k8s_metadata = k8s_repo["metadata"]
+            assert k8s_metadata is not None
+            k8s_ns = k8s_metadata["namespace"]
+            k8s_name = k8s_metadata["name"]
             if gh_lastmod != k8s_lastmod:
                 logging.info(
                     f"Updating repo {repo_name}, last mod changed to {gh_lastmod} ({gh_repo.pushed_at=})"
                     + f" from {k8s_lastmod}"
                 )
                 logging.info(
-                    f"""Call is repoapi.status.patch(namespace={k8s_repo["metadata"]["namespace"]},
-                                                     name={k8s_repo["metadata"]["name"]},
-                    body={[
-                        {
-                            "op": "replace",
-                            "path": "/status/remotePosition/lastModified",
-                            "value": gh_lastmod,
-                        }
-                    ]},
+                    f"""Call is repoapi.status.patch(namespace={k8s_ns},
+                                                     name={k8s_name},
+                    body={
+                        [
+                            {
+                                "op": "replace",
+                                "path": "/status/remotePosition/lastModified",
+                                "value": gh_lastmod,
+                            }
+                        ]
+                    },
                     content_type="application/json-patch+json")'"""
                 )
                 repoapi.status.patch(
-                    namespace=k8s_repo["metadata"]["namespace"],
-                    name=k8s_repo["metadata"]["name"],
+                    namespace=k8s_ns,
+                    name=k8s_name,
                     body=[
                         {
                             "op": "replace",
@@ -250,7 +251,7 @@ def transcribe(app_id, pkey, src_tgt: SourceAndTarget, workspace_name: str = Non
                 )
 
 
-def main():
+def main() -> None:
     """
     This runs when we're invoked as a command-line tool. It's a separate function so that its
     variables have non-global scope.
@@ -275,8 +276,7 @@ def main():
     if args.all_workspaces:
         if args.workspace or args.namespace or args.organization or args.team:
             sys.stderr.write(
-                "Cannot use --workspace, --namespace, --organization or --team "
-                + "with --all-workspaces.\n"
+                "Cannot use --workspace, --namespace, --organization or --team " + "with --all-workspaces.\n"
             )
             sys.exit(1)
 
@@ -291,15 +291,10 @@ def main():
             sys.stderr.write(f"Workspace {args.workspace} not found.\n")
             sys.exit(2)
     elif args.namespace and args.organization:
-        to_sync = [
-            SourceAndTarget(
-                organization=args.organization, team=args.team, namespace=args.namespace
-            )
-        ]
+        to_sync = [SourceAndTarget(organization=args.organization, team=args.team, namespace=args.namespace)]
     else:
         sys.stderr.write(
-            "One of --all-namespaces, --workspace, or --organization and --namespace must be "
-            + "specified."
+            "One of --all-namespaces, --workspace, or --organization and --namespace must be " + "specified."
         )
         sys.exit(1)
 
@@ -309,8 +304,7 @@ def main():
     for src_tgt in to_sync:
         try:
             logger.info(
-                f"Transcribing repos from {src_tgt.organization}:{src_tgt.team} "
-                + f"to ns {src_tgt.namespace}"
+                f"Transcribing repos from {src_tgt.organization}:{src_tgt.team} " + f"to ns {src_tgt.namespace}"
             )
             transcribe(app_id, pkey, src_tgt)
         except Exception:  # pylint: disable=broad-exception-caught

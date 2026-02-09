@@ -164,4 +164,5 @@ cython_debug/
 
 
 scratch
+.pre-commit-config.yaml
 
