@@ -12,7 +12,7 @@ import pygit2
 from filelock import FileLock
 from github import Auth, Github, GithubIntegration
 from github.Repository import Repository
-from pygit2.enums import BranchType, ObjectType, ResetMode
+from pygit2.enums import BranchType, ObjectType, RepositoryOpenFlag, ResetMode
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class GitHubRepo:
                 self.parent_dir = self.location.parent.parent.parent
 
         try:
-            self.repo = pygit2.Repository(self.location, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
+            self.repo = pygit2.Repository(self.location, RepositoryOpenFlag.NO_SEARCH)
         except pygit2.GitError:  # pylint disable=no-member  (use of C wrapper breaks linting)
             self.repo = None
 
@@ -200,7 +200,7 @@ class GitHubRepo:
                 # No clone or clone is invalid at time of construction.
                 # Check again now lock held.
                 try:
-                    self.repo = pygit2.Repository(self.location, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
+                    self.repo = pygit2.Repository(self.location, RepositoryOpenFlag.NO_SEARCH)
                 except pygit2.GitError:  # pylint disable=no-member
                     self.repo = None
 
