@@ -176,7 +176,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3-stubs", extras = ["s3"], specifier = ">=1.42.44" },
+    { name = "boto3-stubs", extras = ["s3"], specifier = "==1.42.44" },
     { name = "moto" },
     { name = "pre-commit" },
     { name = "pyright" },
