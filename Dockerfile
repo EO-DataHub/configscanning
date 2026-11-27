@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
+# syntax=docker/dockerfile:1@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:00e2b362982a5ce19eb3a51453ed76af92ccaaedccc0236fae83b27d994ae0f3
 
 ENV UV_NO_DEV=1
 
